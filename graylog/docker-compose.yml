@@ -1,43 +1,70 @@
 version: '3'
 services:
-
   # MongoDB: https://hub.docker.com/_/mongo/
   mongo:
-    image: mongo:4.4.6
+    image: mongo:6.0.9
+    container_name: Graylog_Mongo
+    environment:
+      - "TZ=Asia/Taipei"
+    volumes:
+      - /graylog/mongo_data:/data/db
     networks:
       - graylog
 
   # Elasticsearch: https://www.elastic.co/guide/en/elasticsearch/reference/7.10/docker.html
   elasticsearch:
     image: elasticsearch:7.17.2
+    container_name: Graylog_ES
     environment:
+      - discovery.type=single-node
       - http.host=0.0.0.0
       - transport.host=localhost
       - network.host=0.0.0.0
+      - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=-Dlog4j2.formatMsgNoLookups=true -Xms512m -Xmx512m"
+      - "TZ=Asia/Taipei"
+    volumes:
+      - /graylog/es_data:/usr/share/elasticsearch/data
     ulimits:
       memlock:
         soft: -1
         hard: -1
-    deploy:
-      resources:
-        limits:
-          memory: 1g
+    #deploy:
+      #resources:
+        #limits:
+          #memory: 1g
     networks:
       - graylog
 
-# Graylog: https://hub.docker.com/r/graylog/graylog/
   graylog:
-    image: graylog/graylog:4.0.15
+    image: graylog/graylog:5.1.2
+    container_name: Graylog_Server
+    hostname: tpedbslog91
     environment:
       # CHANGE ME (must be at least 16 characters)!
       - GRAYLOG_PASSWORD_SECRET=somepasswordpepper
+      - GRAYLOG_MESSAGE_JOURNAL_MAX_SIZE=150GB
       # Password: admin
+      - GRAYLOG_ROOT_USERNAME=admin
       - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      - GRAYLOG_ROOT_TIMEZONE=Asia/Taipei
+      - GRAYLOG_TIMEZONE=Asia/Taipei
+      - "TZ=Asia/Taipei"
+        #      - GRAYLOG_HTTP_BIND_ADDRESS=127.0.0.1:9000
       - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
-      - GRAYLOG_HTTP_PUBLISH_URI=http://192.168.56.15:9000
-      - GRAYLOG_HTTP_EXTERNAL_URI=http://192.168.56.15:9000/
+      - GRAYLOG_TRANSPORT_EMAIL_ENABLED= true
+      - GRAYLOG_TRANSPORT_EMAIL_HOSTNAME= 192.168.21.75
+      - GRAYLOG_TRANSPORT_PROTOCOL= smtp
+      - GRAYLOG_TRANSPORT_EMAIL_PORT= 25
+      - GRAYLOG_TRANSPORT_EMAIL_USE_AUTH= false
+      - GRAYLOG_TRANSPORT_EMAIL_USE_TLS= false
+      - GRAYLOG_TRANSPORT_EMAIL_USE_SSL= false
     entrypoint: /usr/bin/tini -- wait-for-it elasticsearch:9200 --  /docker-entrypoint.sh
+    volumes:
+      - /graylog/graylog_data/journal:/usr/share/graylog/data/journal
+      - /graylog/graylog_data/plugin:/usr/share/graylog/plugin
+      - /graylog/graylog_data/contentpacks:/usr/share/graylog/data/contentpacks
+      - /etc/cer/:/etc/cer/
     networks:
       - graylog
     restart: always
@@ -46,7 +73,7 @@ services:
       - elasticsearch
     ports:
       # Graylog web interface and REST API
-      - 9000:9000
+      # - 9000:9000
       # Syslog TCP
       - 1514:1514
       # Syslog UDP
@@ -55,7 +82,20 @@ services:
       - 12201:12201
       # GELF UDP
       - 12201:12201/udp
+      - 5044:5044
 
+  nginx:
+    image: nginx:latest
+    container_name: Graylog_proxy
+    volumes:
+      - /graylog/nginx/conf.d:/etc/nginx/conf.d
+      - /graylog/nginx/ssl:/etc/nginx/ssl
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - graylog
+    restart: always
 
 networks:
   graylog:
