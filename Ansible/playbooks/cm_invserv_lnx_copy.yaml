@@ -1,0 +1,22 @@
+---
+- name: Check disk space and write to CSV
+  hosts: vagrant3
+  become: true
+  tasks:
+    - name: Populate service
+      service_facts:
+    - set_fact: 
+        service_list="{{ ansible_facts.services }}"
+    - name: 2
+      debug:
+        msg: "{{ service_list }}"
+#        msg: "{{ inventory_hostname }},{{ item.key }},{{ item.value }}"
+#        with_dict: "{{ service_list }}"
+#    - name: 2
+#      debug:
+#        msg: "{{ ansible_facts.services | dict2items | map(attribute='value')   }}"
+#        msg: "{{ ansible_facts.services }}"
+
+
+
+

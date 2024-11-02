@@ -1,0 +1,53 @@
+---
+- name: Gather host information
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Gather specific host facts
+      set_fact:
+        hostname: "{{ ansible_hostname }}"
+        d_interface: "{{ ansible_default_ipv4.interface | default('N/A') }}"
+        d_ip_addr: "{{ ansible_default_ipv4.address | default('N/A') }}"
+        d_mac_addr: "{{ ansible_default_ipv4.macaddress | default('N/A') }}"
+        d_netmask: "{{ ansible_default_ipv4.netmask | default('N/A') }}"
+        d_gateway: "{{ ansible_default_ipv4.gateway | default('N/A') }}"
+        os_distribution: "{{ ansible_distribution | default('N/A') }} "
+        os_version: "{{ ansible_distribution_version | default('N/A') }} "
+        dns_svr: "{{ ansible_dns.nameservers[0] | default('N/A') }} "
+        cpu_count: "{{ ansible_processor_vcpus | default('N/A') }}"
+        cpu_brand: "{{ ansible_processor[2] | default('N/A') }}"
+        memory_total: "{{ ansible_memtotal_mb | default('N/A') }} MB"
+        virtualization_type: "{{ ansible_virtualization_type | default('N/A') }}"
+
+    - name: Extract device names and sizes
+      set_fact:
+        disk_info: "{{ disk_info | default({}) | combine({item.key: item.value.size}) }}"
+      loop: "{{ ansible_devices | dict2items | selectattr('key', 'match', '^sd.*') }}"
+      when: item.value.size is defined
+
+    - name: Format the host information
+      set_fact:
+        host_info: >
+          "{{ hostname }},
+          {{ d_interface }},
+          {{ d_ip_addr }},
+          {{ d_mac_addr }},
+          {{ d_netmask }},
+          {{ d_gateway }},
+          {{ os_distribution }},
+          {{ os_version }},
+          {{ dns_svr }},
+          {{ cpu_count }},
+          {{ cpu_brand }},
+          {{ memory_total }},
+          {{ virtualization_type }},
+          {{ disk_info }},"
+
+    - name: Append host information to CSV file
+      delegate_to: localhost
+      lineinfile:
+        path: /tmp/ansible.out/spec/{{ lookup('pipe', 'date +%Y%m%d%H%M') }}_{{ inventory_hostname }}.csv
+        line: "{{ host_info }}"
+        create: yes
+        state: present
+        insertafter: EOF

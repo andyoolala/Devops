@@ -1,0 +1,38 @@
+- hosts: all
+  become: true
+  vars_prompt:
+    - name: "target_user"
+      prompt: "please input user name"
+      private: no
+    - name: "new_passwd"
+      prompt: "please input the password"
+      private: yes
+    - name: "action_user"
+      prompt: "please choose your action [ADD=1|CHANGE_PWD=2]"
+      private: no
+    - name: "iso_policy"
+      prompt: "please choose Password Policy [ISO=1|NONE=2]"
+      private: yes
+  tasks:
+    - name: Add user "{{ target_user }}"
+      ansible.builtin.user:
+        name={{ target_user }}
+      when: action_user == '1'
+
+    - name: change password for "{{ target_user }}"
+      ansible.builtin.user:
+        name: "{{ target_user }}"
+        password: "{{ new_passwd | password_hash('sha512') }}"
+      when:  action_user  in ['1','2']
+
+    - name: enable iso27001 policy for "{{ target_user }}"
+      command: chage -M 90 -m 2 -I 14 "{{ target_user }}"
+      when:  iso_policy  == '1'
+
+    - name: rollback iso27001 policy for "{{ target_user }}"
+      ansible.builtin.user:
+        name: "{{ target_user }}"
+        password_expire_max : 99999
+        password_expire_min : 0
+        expires : -1
+      when:  iso_policy  == '2'

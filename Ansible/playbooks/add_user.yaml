@@ -1,0 +1,25 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: Add user '{{ user }}'
+      ansible.builtin.user:
+        name={{ user }}
+      when: action == 'add'
+
+    - name: change password for '{{ user }}'
+      ansible.builtin.user:
+        name: '{{ user }}'
+        password: "{{ pwd | password_hash('sha512') }}"
+      when:  action  == 'enable_iso'
+
+    - name: enable iso27001 policy for '{{ user }}'
+      command: chage -M 90 -m 2 -I 14 '{{ user }}'
+      when:  action  == 'enable_iso'
+
+    - name: rollback iso27001 policy for '{{ user }}'
+      ansible.builtin.user:
+        name: '{{ user }}'
+        password_expire_max : 99999
+        password_expire_min : 0
+        expires : -1
+      when:  action  == 'rollback_iso'

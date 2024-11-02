@@ -1,0 +1,17 @@
+---
+- name: Gather service facts and list all services
+  hosts: all
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Gather service facts
+      service_facts:
+    - name: Generate CSV from service facts(Rhel)
+      delegate_to: localhost
+      copy:
+        content: |
+          service_name,state,status
+          {% for service, details in ansible_facts.services.items() %}
+          {{ inventory_hostname }},{{ service }},{{ details.state }}
+          {% endfor %}
+        dest: /tmp/ansible.out/service/{{ lookup('pipe', 'date +%Y%m%d%H%M') }}_{{ inventory_hostname }}.csv

@@ -1,0 +1,30 @@
+---
+- name: Gather package facts and list all packages
+  hosts: all
+  become: yes
+  gather_facts: yes
+  tasks:
+    - name: Gather package facts
+      package_facts:
+    - name: Generate CSV from package facts(Rhel)
+      delegate_to: localhost
+      copy:
+        content: |
+          {% for package, details_list in ansible_facts.packages.items() %}
+          {% for details in details_list %}
+          {{ inventory_hostname }},{{ package }},{{ details.arch }},{{ details.version }}-{{ details.release }}
+          {% endfor %}
+          {% endfor %}
+        dest: /tmp/ansible.out/package/{{ lookup('pipe', 'date +%Y%m%d%H%M') }}_{{ inventory_hostname }}.csv
+      when: ansible_facts['os_family'] == "RedHat"
+    - name: Generate CSV from package facts(Rhel)
+      delegate_to: localhost
+      copy:
+        content: |
+          {% for package, details_list in ansible_facts.packages.items() %}
+          {% for details in details_list %}
+          {{ inventory_hostname }},{{ package }},{{ details.arch }},{{ details.version }}
+          {% endfor %}
+          {% endfor %}
+        dest: /tmp/ansible.out/package/{{ lookup('pipe', 'date +%Y%m%d%H%M') }}_{{ inventory_hostname }}.csv
+      when: ansible_facts['os_family'] == "Debian"

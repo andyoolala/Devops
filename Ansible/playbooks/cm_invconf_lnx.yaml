@@ -1,0 +1,42 @@
+- hosts: all
+  gather_facts: no
+  tasks:
+    - name: Read PermitRootLogin from /etc/ssh/sshd_config
+      shell: "grep -E '^PermitRootLogin\\s*' /etc/ssh/sshd_config | cut -d ' ' -f 2"
+      register: result
+      become: true
+    - set_fact: PermitRootLogin="{{ inventory_hostname }},/etc/ssh/sshd_config,PermitRootLogin,{{ result.stdout }}"
+    - name: Fetch SELINUX status
+      shell: "getenforce"
+      register: result
+      become: true
+    - set_fact: selinux="{{ inventory_hostname }},getenforce,SELINUX,{{ result.stdout }}"
+    - name: Fetch Terminal timeout values
+      shell: "echo \\$TMOUT"
+      register: result
+    - set_fact: tmout="{{ inventory_hostname }},/etc/profile,TMOUT,{{ result.stdout }}"
+    - name: Fetch NTP Server Values
+      shell: grep -E '^server\s*' /etc/ntp.conf |cut -d ' ' -f 2
+      register: result
+      become: true
+    - set_fact: ntp="{{ inventory_hostname }},/etc/ntp.conf,server,{{ result.stdout }}"
+    - name: Fetch NTP Server Values
+      shell: grep -E '^server\s*' /etc/chrony.conf |cut -d ' ' -f 2
+      register: result
+      become: true
+    - set_fact: chrony="{{ inventory_hostname }},/etc/chrony.conf,server,{{ result.stdout }}"
+    - name: Write result to output_cm.csv
+      delegate_to: localhost
+      lineinfile:
+        path: /tmp/ansible.out/config/{{ lookup('pipe', 'date +%Y%m%d%H%M') }}_{{ inventory_hostname }}.csv
+        line: "{{ item.line }}"
+        create: yes
+        state: present
+      when: item.line | length > 0
+      loop:
+        - line: "{{ PermitRootLogin }}"
+        - line: "{{ selinux }}"
+        - line: "{{ tmout }}"
+        - line: "{{ ntp }}"
+        - line: "{{ chrony }}"
+      ignore_errors: yes

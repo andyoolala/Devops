@@ -1,0 +1,40 @@
+- hosts: all
+  become: true
+  gather_facts: no
+  tasks:
+    - name: check lslogin installed
+      shell: command -v lslogins >/dev/null 2>&1
+      register: lslogins_present
+      ignore_errors: yes
+    - name: get realm info
+      shell: "realm list | grep domain-name | cut -d: -f2"
+      register: realm_info
+      ignore_errors: yes
+    - name: fetch linux user from lslogins
+      script: scripts/inv_lnx_user_lslogins.sh
+      register: local_user_list1
+      when: lslogins_present.rc == 0
+    - name: fetch linux user from /etc/passwd
+      script: scripts/inv_lnx_user_passwd.sh
+      register: local_user_list2
+      when: lslogins_present.rc != 0
+    - name: fetch ad user from shell script
+      script: scripts/inv_lnx_ad_user.sh
+      register: ad_user_list
+      when: realm_info.stdout | d("")
+    - name: Debug
+      debug:
+        var: local_user_list1.stdout_lines | d([])
+    - name: Write result to output.csv
+      delegate_to: localhost
+      lineinfile:
+        path: /tmp/ansible.out/user/{{ lookup('pipe', 'date +%Y%m%d%H%M') }}_{{ inventory_hostname }}.csv
+        line: "{{ item.line | join('\n') }}"
+        create: yes
+        state: present
+      when: item.line | length > 0
+      loop:
+        - line: "{{ local_user_list1.stdout_lines | d([]) }}"
+        - line: "{{ local_user_list2.stdout_lines | d([]) }}"
+        - line: "{{ ad_user_list.stdout_lines | d([]) }}"
+      ignore_errors: yes
