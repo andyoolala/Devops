@@ -14,7 +14,6 @@ deb-src http://tw.archive.ubuntu.com/ubuntu/ jammy universe
 deb http://tw.archive.ubuntu.com/ubuntu/ jammy-updates universe
 
 ```
-![tt](./337003.jpg)
 
 ## Setup Graylog using docker
 
